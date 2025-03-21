@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,17 +7,128 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  password  String
-  name      String?
-  createdAt DateTime @default(now())
+model consultations {
+  id         Int                  @id @default(autoincrement())
+  user_id    Int?
+  message    String?
+  status     consult_status_enum?
+  created_at DateTime?            @db.Timestamp(6)
+  users      users?               @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
-model Course {
-  id          Int      @id @default(autoincrement())
-  title       String
-  description String?
-  createdAt   DateTime @default(now())
+model course_registrations {
+  id         Int                       @id @default(autoincrement())
+  user_id    Int?
+  course_id  Int?
+  status     registration_status_enum?
+  created_at DateTime?                 @db.Timestamp(6)
+  courses    courses?                  @relation(fields: [course_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users      users?                    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model courses {
+  id                   Int                    @id @default(autoincrement())
+  name                 String?                @db.VarChar(255)
+  description          String?
+  price                Decimal?               @db.Decimal(10, 2)
+  is_online            Boolean?
+  created_at           DateTime?              @db.Timestamp(6)
+  course_registrations course_registrations[]
+}
+
+model ielts_exam_registrations {
+  id         Int                       @id @default(autoincrement())
+  user_id    Int?
+  exam_date  DateTime?                 @db.Date
+  location   String?                   @db.VarChar(255)
+  status     registration_status_enum?
+  created_at DateTime?                 @db.Timestamp(6)
+  users      users?                    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model ielts_results {
+  id          Int          @id @default(autoincrement())
+  user_id     Int?
+  test_id     Int?
+  listening   Float?
+  reading     Float?
+  writing     Float?
+  speaking    Float?
+  overall     Float?
+  created_at  DateTime?    @db.Timestamp(6)
+  ielts_tests ielts_tests? @relation(fields: [test_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users       users?       @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model ielts_tests {
+  id            Int             @id @default(autoincrement())
+  name          String?         @db.VarChar(255)
+  description   String?
+  created_at    DateTime?       @db.Timestamp(6)
+  ielts_results ielts_results[]
+}
+
+model leads {
+  id         Int       @id @default(autoincrement())
+  full_name  String?   @db.VarChar(255)
+  email      String?   @db.VarChar(255)
+  phone      String?   @db.VarChar(20)
+  message    String?
+  created_at DateTime? @db.Timestamp(6)
+}
+
+model payments {
+  id             Int                     @id @default(autoincrement())
+  user_id        Int?
+  reference_type payment_reference_enum?
+  reference_id   Int?
+  amount         Decimal?                @db.Decimal(10, 2)
+  status         payment_status_enum?
+  invoice_url    String?                 @db.VarChar(255)
+  payment_date   DateTime?               @db.Timestamp(6)
+  users          users?                  @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model users {
+  id                       Int                        @id @default(autoincrement())
+  full_name                String?                    @db.VarChar(255)
+  email                    String?                    @unique @db.VarChar(255)
+  password                 String?                    @db.VarChar(255)
+  phone                    String?                    @db.VarChar(20)
+  role                     role_enum?
+  created_at               DateTime?                  @db.Timestamp(6)
+  consultations            consultations[]
+  course_registrations     course_registrations[]
+  ielts_exam_registrations ielts_exam_registrations[]
+  ielts_results            ielts_results[]
+  payments                 payments[]
+}
+
+enum consult_status_enum {
+  pending
+  in_progress
+  done
+}
+
+enum payment_reference_enum {
+  course
+  ielts_exam
+}
+
+enum payment_status_enum {
+  pending
+  success
+  failed
+}
+
+enum registration_status_enum {
+  pending
+  paid
+  cancelled
+}
+
+enum role_enum {
+  student
+  manager
+  admin
 }

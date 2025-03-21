@@ -1,8 +1,13 @@
+// src/main.ts
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  // Tạo ứng dụng NestJS từ AppModule
   const app = await NestFactory.create(AppModule);
-  await app.listen(process.env.PORT ?? 3000);
+  // Cho phép CORS (nếu cần cho FE)
+  app.enableCors();
+  await app.listen(3010);
+  console.log('Server chạy trên cổng 3001');
 }
 bootstrap();
