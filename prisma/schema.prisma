@@ -1,124 +1,22 @@
+// schema.prisma
+
+datasource db {
+  provider = "postgresql" // hoặc "mysql", "sqlite", ...
+  url      = env("DATABASE_URL")
+}
+
 generator client {
   provider = "prisma-client-js"
 }
 
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
+//////////////////////////////////////////////////////
+// 1. Định nghĩa ENUM
+//////////////////////////////////////////////////////
 
-model consultations {
-  id         Int                  @id @default(autoincrement())
-  user_id    Int?
-  message    String?
-  status     consult_status_enum?
-  created_at DateTime?            @db.Timestamp(6)
-  users      users?               @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-}
-
-model course_registrations {
-  id         Int                       @id @default(autoincrement())
-  user_id    Int?
-  course_id  Int?
-  status     registration_status_enum?
-  created_at DateTime?                 @db.Timestamp(6)
-  courses    courses?                  @relation(fields: [course_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  users      users?                    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-}
-
-model courses {
-  id                   Int                    @id @default(autoincrement())
-  name                 String?                @db.VarChar(255)
-  description          String?
-  price                Decimal?               @db.Decimal(10, 2)
-  is_online            Boolean?
-  created_at           DateTime?              @db.Timestamp(6)
-  course_registrations course_registrations[]
-}
-
-model ielts_exam_registrations {
-  id         Int                       @id @default(autoincrement())
-  user_id    Int?
-  exam_date  DateTime?                 @db.Date
-  location   String?                   @db.VarChar(255)
-  status     registration_status_enum?
-  created_at DateTime?                 @db.Timestamp(6)
-  users      users?                    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-}
-
-model ielts_results {
-  id          Int          @id @default(autoincrement())
-  user_id     Int?
-  test_id     Int?
-  listening   Float?
-  reading     Float?
-  writing     Float?
-  speaking    Float?
-  overall     Float?
-  created_at  DateTime?    @db.Timestamp(6)
-  ielts_tests ielts_tests? @relation(fields: [test_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  users       users?       @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-}
-
-model ielts_tests {
-  id            Int             @id @default(autoincrement())
-  name          String?         @db.VarChar(255)
-  description   String?
-  created_at    DateTime?       @db.Timestamp(6)
-  ielts_results ielts_results[]
-}
-
-model leads {
-  id         Int       @id @default(autoincrement())
-  full_name  String?   @db.VarChar(255)
-  email      String?   @db.VarChar(255)
-  phone      String?   @db.VarChar(20)
-  message    String?
-  created_at DateTime? @db.Timestamp(6)
-}
-
-model payments {
-  id             Int                     @id @default(autoincrement())
-  user_id        Int?
-  reference_type payment_reference_enum?
-  reference_id   Int?
-  amount         Decimal?                @db.Decimal(10, 2)
-  status         payment_status_enum?
-  invoice_url    String?                 @db.VarChar(255)
-  payment_date   DateTime?               @db.Timestamp(6)
-  users          users?                  @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-}
-
-model users {
-  id                       Int                        @id @default(autoincrement())
-  full_name                String?                    @db.VarChar(255)
-  email                    String?                    @unique @db.VarChar(255)
-  password                 String?                    @db.VarChar(255)
-  phone                    String?                    @db.VarChar(20)
-  role                     role_enum?
-  created_at               DateTime?                  @db.Timestamp(6)
-  consultations            consultations[]
-  course_registrations     course_registrations[]
-  ielts_exam_registrations ielts_exam_registrations[]
-  ielts_results            ielts_results[]
-  payments                 payments[]
-}
-
-enum consult_status_enum {
-  pending
-  in_progress
-  done
-}
-
-enum payment_reference_enum {
-  course
-  ielts_exam
-}
-
-enum payment_status_enum {
-  pending
-  success
-  failed
+enum role_enum {
+  student
+  manager
+  admin
 }
 
 enum registration_status_enum {
@@ -127,8 +25,261 @@ enum registration_status_enum {
   cancelled
 }
 
-enum role_enum {
-  student
-  manager
-  admin
+enum consult_status_enum {
+  pending
+  in_progress
+  done
+}
+
+enum consultation_type_enum {
+  course
+  study_abroad
+  general
+}
+
+enum payment_reference_enum {
+  ielts_exam
+  ielts_mock_center
+  ielts_mock_online
+}
+
+enum payment_status_enum {
+  pending
+  success
+  failed
+}
+
+enum skill_enum {
+  listening
+  reading
+  writing
+  speaking
+}
+
+enum payment_method_enum {
+  QR
+  PayOS
+  other
+}
+
+//////////////////////////////////////////////////////
+// 2. Model users
+//////////////////////////////////////////////////////
+
+model users {
+  id         Int      @id @default(autoincrement())
+  full_name  String?
+  email      String?  @unique
+  password   String?
+  phone      String?
+  role       role_enum?
+  avatar     String?
+  created_at DateTime?
+
+  // Quan hệ ngược (nếu cần)
+  // ielts_exam_registrations       ielts_exam_registrations[]
+  // ielts_mock_registrations       ielts_mock_registrations[]
+  // ielts_center_mock_registrations ielts_center_mock_registrations[]
+  // payments                       payments[]
+  // consultations                  consultations[]
+
+  ielts_exam_registrations ielts_exam_registrations[]
+
+  ielts_mock_registrations ielts_mock_registrations[]
+
+  ielts_center_mock_registrations ielts_center_mock_registrations[]
+
+  payments payments[]
+
+  consultations consultations[]
+}
+
+//////////////////////////////////////////////////////
+// 3. Model courses (chỉ hiển thị)
+//////////////////////////////////////////////////////
+
+model courses {
+  id          Int      @id @default(autoincrement())
+  name        String?
+  description String?
+  price       Decimal?
+  is_online   Boolean?
+  created_at  DateTime?
+}
+
+//////////////////////////////////////////////////////
+// 4. Model ielts_tests (Thi chính thức)
+//////////////////////////////////////////////////////
+
+model ielts_tests {
+  id          Int        @id @default(autoincrement())
+  name        String?
+  description String?
+  skill       skill_enum?
+  created_at  DateTime?
+
+  // 1-n
+  ielts_exam_registrations ielts_exam_registrations[]
+}
+
+model ielts_exam_registrations {
+  id           Int                     @id @default(autoincrement())
+  user_id      Int?
+  test_id      Int?
+  exam_date    DateTime?
+  location     String?
+  is_at_center Boolean?                @default(false)
+  status       registration_status_enum?
+  created_at   DateTime?
+
+  // FK -> users
+  users       users? @relation(fields: [user_id], references: [id])
+  // FK -> ielts_tests
+  ielts_tests ielts_tests? @relation(fields: [test_id], references: [id])
+
+  // Kết quả (1-n)
+  ielts_skill_results ielts_skill_results[]
+}
+model ielts_skill_results {
+  id              Int    @id @default(autoincrement())
+  registration_id Int?
+  score           Float?
+  answer_detail   String?
+  created_at      DateTime?
+
+  // FK -> ielts_exam_registrations
+  ielts_exam_registrations ielts_exam_registrations? @relation(fields: [registration_id], references: [id])
+}
+
+//////////////////////////////////////////////////////
+// 5. Model ielts_mock_tests (Thi thử online)
+//////////////////////////////////////////////////////
+
+model ielts_mock_tests {
+  id          Int        @id @default(autoincrement())
+  name        String?
+  description String?
+  skill       skill_enum?
+  created_at  DateTime?
+
+  ielts_mock_registrations ielts_mock_registrations[]
+}
+
+model ielts_mock_registrations {
+  id           Int                     @id @default(autoincrement())
+  user_id      Int?
+  mock_test_id Int?
+  exam_date    DateTime?
+  status       registration_status_enum?
+  created_at   DateTime?
+
+  // FK
+  users            users?            @relation(fields: [user_id], references: [id])
+  ielts_mock_tests ielts_mock_tests? @relation(fields: [mock_test_id], references: [id])
+
+  ielts_mock_results ielts_mock_results[]
+}
+
+model ielts_mock_results {
+  id             Int    @id @default(autoincrement())
+  registration_id Int?
+  score          Float?
+  answer_detail  String?
+  created_at     DateTime?
+
+  // FK
+  ielts_mock_registrations ielts_mock_registrations? @relation(fields: [registration_id], references: [id])
+}
+
+//////////////////////////////////////////////////////
+// 6. Model ielts_center_mock_tests (Thi thử offline tại trung tâm)
+//////////////////////////////////////////////////////
+
+model ielts_center_mock_tests {
+  id          Int        @id @default(autoincrement())
+  name        String?
+  description String?
+  skill       skill_enum?
+  created_at  DateTime?
+
+  ielts_center_mock_registrations ielts_center_mock_registrations[]
+}
+
+model ielts_center_mock_registrations {
+  id                 Int    @id @default(autoincrement())
+  user_id            Int?
+  center_mock_test_id Int?
+  exam_date          DateTime?
+  location           String?
+  status             registration_status_enum?
+  created_at         DateTime?
+
+  // FK -> users
+  users users? @relation(fields: [user_id], references: [id])
+  // FK -> ielts_center_mock_tests
+  ielts_center_mock_tests ielts_center_mock_tests? @relation(fields: [center_mock_test_id], references: [id])
+
+  ielts_center_mock_results ielts_center_mock_results[]
+}
+
+model ielts_center_mock_results {
+  id              Int    @id @default(autoincrement())
+  registration_id Int?
+  score           Float?
+  answer_detail   String?
+  created_at      DateTime?
+
+  // FK
+  ielts_center_mock_registrations ielts_center_mock_registrations? @relation(fields: [registration_id], references: [id])
+}
+
+//////////////////////////////////////////////////////
+// 7. Model payments
+//////////////////////////////////////////////////////
+
+model payments {
+  id             Int                 @id @default(autoincrement())
+  user_id        Int?
+  reference_type payment_reference_enum?
+  reference_id   Int?
+  amount         Decimal?
+  status         payment_status_enum?
+  payment_method payment_method_enum?
+  invoice_sent   Boolean?            @default(false)
+  invoice_url    String?
+  payment_date   DateTime?
+  created_at     DateTime?
+
+  // FK -> users
+  users users? @relation(fields: [user_id], references: [id])
+}
+
+//////////////////////////////////////////////////////
+// 8. Model consultations
+//////////////////////////////////////////////////////
+
+model consultations {
+  id                 Int    @id @default(autoincrement())
+  user_id            Int?
+  message            String?
+  status             consult_status_enum?
+  consultation_type  consultation_type_enum?
+  created_at         DateTime?
+
+  // FK -> users
+  users users? @relation(fields: [user_id], references: [id])
+}
+
+//////////////////////////////////////////////////////
+// 9. Model job_applications
+//////////////////////////////////////////////////////
+
+model job_applications {
+  id         Int    @id @default(autoincrement())
+  full_name  String?
+  email      String?
+  phone      String?
+  cv_url     String?
+  message    String?
+  created_at DateTime?
 }
