@@ -7,7 +7,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   // Cho phép CORS (nếu cần cho FE)
   app.enableCors();
-  await app.listen(3010);
-  console.log('Server chạy trên cổng 3001');
+  await app.listen(3000);
+  console.log('Server chạy trên cổng 3000');
 }
 bootstrap();

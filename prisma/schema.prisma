@@ -73,8 +73,9 @@ model users {
   password   String?
   phone      String?
   role       role_enum?
-  avatar     String?
-  created_at DateTime?
+  reset_token String?   
+  created_at DateTime? @default(now())
+  updated_at DateTime? @updatedAt
 
   // Quan hệ ngược (nếu cần)
   // ielts_exam_registrations       ielts_exam_registrations[]

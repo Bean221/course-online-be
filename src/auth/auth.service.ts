@@ -1,91 +1,112 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
-import { RegisterDto } from './dto/auth.dto';
-import { users } from '.prisma/client';
-import { hash, compare } from 'bcrypt';
-import { HttpException, HttpStatus } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
+import * as nodemailer from 'nodemailer';
+import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { role_enum } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private prismaService: PrismaService,
+    private prisma: PrismaService,
     private jwtService: JwtService,
   ) {}
 
-  register = async (userData: RegisterDto): Promise<users> => {
-    // check email
-    const user = await this.prismaService.users.findUnique({
-      where: {
-        email: userData.email,
-      },
+  // Đăng ký
+  async register(registerDto: RegisterDto) {
+    const { full_name, email, password, phone, role } = registerDto;
+    const existingUser = await this.prisma.users.findUnique({
+      where: { email },
     });
-    if (user) {
-      throw new HttpException(
-        { massage: 'This email has been used' },
-        HttpStatus.BAD_REQUEST,
-      );
+    if (existingUser) {
+      throw new BadRequestException('Email đã tồn tại');
     }
-    // tạo user // hash data
-    const hashPassword = await hash(userData.password, 10);
-    const res = await this.prismaService.users.create({
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await this.prisma.users.create({
       data: {
-        ...userData,
-        password: hashPassword,
+        full_name,
+        email,
+        password: hashedPassword,
+        phone,
+        role: role || role_enum.student, // Mặc định là 'student'
+        created_at: new Date(),
       },
     });
-    return res;
-  };
+    return { message: 'Đăng ký thành công' };
+  }
 
-  // login
-  login = async (data: { email: string; password: string }): Promise<any> => {
-    // buoc 1 check user có tồn lại không
-    const user = await this.prismaService.users.findUnique({
-      where: {
-        email: data.email,
+  // Đăng nhập
+  async login(loginDto: LoginDto) {
+    const { email, password } = loginDto;
+    const user = await this.prisma.users.findUnique({ where: { email } });
+    if (!user || !(await bcrypt.compare(password, user.password || ''))) {
+      throw new BadRequestException('Thông tin đăng nhập không đúng');
+    }
+    const payload = { id: user.id, role: user.role };
+    const token = this.jwtService.sign(payload);
+    return {
+      token,
+      user: {
+        id: user.id,
+        full_name: user.full_name,
+        email: user.email,
+        role: user.role,
       },
+    };
+  }
+
+  // Quên mật khẩu
+  async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+    const { email } = forgotPasswordDto;
+    const user = await this.prisma.users.findUnique({ where: { email } });
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy người dùng');
+    }
+    const resetToken = Math.random().toString(36).slice(2);
+    await this.prisma.users.update({
+      where: { email },
+      data: { reset_token: resetToken },
+    });
+
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Khôi phục mật khẩu',
+      text: `Nhấp vào liên kết để đặt lại mật khẩu: http://localhost:5173/reset-password?token=${resetToken}`,
+    };
+    await transporter.sendMail(mailOptions);
+    return { message: 'Liên kết khôi phục mật khẩu đã được gửi qua email' };
+  }
+
+  // Khôi phục mật khẩu
+  async resetPassword(resetPasswordDto: ResetPasswordDto) {
+    const { token, new_password } = resetPasswordDto;
+    const user = await this.prisma.users.findFirst({
+      where: { reset_token: token },
     });
     if (!user) {
-      throw new HttpException(
-        { massage: 'Account is not exist.' },
-        HttpStatus.UNAUTHORIZED,
-      );
-      //buoc 2 check password đúng chưa
+      throw new BadRequestException('Token không hợp lệ hoặc đã hết hạn');
     }
-    // check password đã set chưa
-    if (!user.password) {
-      throw new HttpException(
-        { message: 'User password is not set' },
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-    const verify = await compare(data.password, user.password); // có thể null ở user.password
-    if (!verify) {
-      throw new HttpException(
-        { massage: 'Password is wrong' },
-        HttpStatus.UNAUTHORIZED,
-      );
-    }
-
-    // buoc 3 trả về token
-    const payload = {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      full_name: user.full_name,
-      phone: user.phone,
-    };
-    const accessToken = await this.jwtService.signAsync(payload, {
-      secret: process.env.ACCESS_TOKEN_KEY,
-      expiresIn: '1h',
+    const hashedPassword = await bcrypt.hash(new_password, 10);
+    await this.prisma.users.update({
+      where: { id: user.id },
+      data: { password: hashedPassword, reset_token: null },
     });
-    const refreshToken = await this.jwtService.signAsync(payload, {
-      secret: process.env.REFRESH_TOKEN_KEY,
-      expiresIn: '7d',
-    });
-    return {
-      accessToken,
-      refreshToken,
-    };
-  };
+    return { message: 'Đặt lại mật khẩu thành công' };
+  }
 }

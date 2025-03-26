@@ -29,7 +29,7 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-floating-promises': 'off',
-      '@typescript-eslint/no-unsafe-argument': 'warn',
+      '@typescript-eslint/no-unsafe-argument': 'error',
       "@typescript-eslint/no-unsafe-call": "error",
       "no-unused-vars": "off",
       "@typescript-eslint/no-unused-vars": "error",
@@ -42,7 +42,8 @@ export default tseslint.config(
           "checksConditionals": false
         }
       ],
-      
+      "require-await": "off",
+      "@typescript-eslint/require-await": "error"
     },
   },
 );
