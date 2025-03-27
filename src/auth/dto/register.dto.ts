@@ -1,11 +1,4 @@
-import {
-  IsEmail,
-  IsNotEmpty,
-  MinLength,
-  IsOptional,
-  IsEnum,
-} from 'class-validator';
-import { role_enum } from '@prisma/client';
+import { IsEmail, IsNotEmpty, MinLength, IsOptional } from 'class-validator';
 
 export class RegisterDto {
   @IsNotEmpty({ message: 'Họ và tên không được để trống' })
@@ -21,8 +14,4 @@ export class RegisterDto {
 
   @IsOptional()
   phone?: string;
-
-  @IsOptional()
-  @IsEnum(role_enum, { message: 'Vai trò không hợp lệ' })
-  role?: role_enum;
 }

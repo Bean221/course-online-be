@@ -105,7 +105,9 @@ model courses {
   description String?
   price       Decimal?
   is_online   Boolean?
-  created_at  DateTime?
+  created_at  DateTime? @default(now())
+  updated_at  DateTime? @updatedAt
+
 }
 
 //////////////////////////////////////////////////////
@@ -117,7 +119,8 @@ model ielts_tests {
   name        String?
   description String?
   skill       skill_enum?
-  created_at  DateTime?
+  created_at  DateTime? @default(now())
+  updated_at  DateTime? @updatedAt
 
   // 1-n
   ielts_exam_registrations ielts_exam_registrations[]
@@ -127,11 +130,12 @@ model ielts_exam_registrations {
   id           Int                     @id @default(autoincrement())
   user_id      Int?
   test_id      Int?
-  exam_date    DateTime?
+  exam_date    DateTime?  
   location     String?
   is_at_center Boolean?                @default(false)
   status       registration_status_enum?
-  created_at   DateTime?
+  created_at   DateTime?             @default(now())
+  updated_at   DateTime?             @updatedAt
 
   // FK -> users
   users       users? @relation(fields: [user_id], references: [id])
@@ -146,7 +150,10 @@ model ielts_skill_results {
   registration_id Int?
   score           Float?
   answer_detail   String?
-  created_at      DateTime?
+  created_at      DateTime?           @default(now())
+  updated_at      DateTime?             @updatedAt
+
+  // FK -> ielts_skill_tests
 
   // FK -> ielts_exam_registrations
   ielts_exam_registrations ielts_exam_registrations? @relation(fields: [registration_id], references: [id])
@@ -161,7 +168,9 @@ model ielts_mock_tests {
   name        String?
   description String?
   skill       skill_enum?
-  created_at  DateTime?
+  created_at  DateTime? @default(now())
+  updated_at  DateTime? @updatedAt
+
 
   ielts_mock_registrations ielts_mock_registrations[]
 }
@@ -172,7 +181,8 @@ model ielts_mock_registrations {
   mock_test_id Int?
   exam_date    DateTime?
   status       registration_status_enum?
-  created_at   DateTime?
+  created_at   DateTime?            @default(now())
+  updated_at   DateTime?            @updatedAt
 
   // FK
   users            users?            @relation(fields: [user_id], references: [id])
@@ -186,7 +196,8 @@ model ielts_mock_results {
   registration_id Int?
   score          Float?
   answer_detail  String?
-  created_at     DateTime?
+  created_at     DateTime? @default(now())
+  updated_at     DateTime? @updatedAt
 
   // FK
   ielts_mock_registrations ielts_mock_registrations? @relation(fields: [registration_id], references: [id])
@@ -201,7 +212,8 @@ model ielts_center_mock_tests {
   name        String?
   description String?
   skill       skill_enum?
-  created_at  DateTime?
+  created_at  DateTime?         @default(now())
+  updated_at  DateTime?         @updatedAt
 
   ielts_center_mock_registrations ielts_center_mock_registrations[]
 }
@@ -213,7 +225,8 @@ model ielts_center_mock_registrations {
   exam_date          DateTime?
   location           String?
   status             registration_status_enum?
-  created_at         DateTime?
+  created_at         DateTime?       @default(now())
+  updated_at         DateTime?       @updatedAt
 
   // FK -> users
   users users? @relation(fields: [user_id], references: [id])
@@ -228,7 +241,8 @@ model ielts_center_mock_results {
   registration_id Int?
   score           Float?
   answer_detail   String?
-  created_at      DateTime?
+  created_at      DateTime? @default(now())
+  updated_at      DateTime? @updatedAt
 
   // FK
   ielts_center_mock_registrations ielts_center_mock_registrations? @relation(fields: [registration_id], references: [id])
@@ -248,8 +262,9 @@ model payments {
   payment_method payment_method_enum?
   invoice_sent   Boolean?            @default(false)
   invoice_url    String?
-  payment_date   DateTime?
-  created_at     DateTime?
+  payment_date   DateTime?         @default(now())
+  created_at     DateTime?         @default(now())
+  updated_at     DateTime?         @updatedAt
 
   // FK -> users
   users users? @relation(fields: [user_id], references: [id])
@@ -265,7 +280,8 @@ model consultations {
   message            String?
   status             consult_status_enum?
   consultation_type  consultation_type_enum?
-  created_at         DateTime?
+  created_at         DateTime?  @default(now())
+  updated_at         DateTime?  @updatedAt
 
   // FK -> users
   users users? @relation(fields: [user_id], references: [id])
@@ -282,5 +298,6 @@ model job_applications {
   phone      String?
   cv_url     String?
   message    String?
-  created_at DateTime?
+  created_at DateTime?  @default(now())
+  updated_at DateTime?  @updatedAt
 }

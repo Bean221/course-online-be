@@ -1,19 +1,26 @@
 import { users } from '@prisma/client';
-import { IsEmail, IsNotEmpty, Matches, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  MinLength,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 export class CreateUserDto {
-  @IsNotEmpty()
-  full_name: string;
-
-  @IsNotEmpty()
   @IsEmail()
   email: string;
 
   @IsNotEmpty()
+  @MinLength(6)
   password: string;
 
-  @Matches(/^[0-9]{10}$/)
-  @MinLength(10)
-  phone: string;
+  @IsOptional()
+  @IsString()
+  full_name?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
 }
 
 export interface UserFilterType {

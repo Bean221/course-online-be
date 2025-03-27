@@ -1,112 +1,99 @@
 import {
   Injectable,
-  BadRequestException,
+  UnauthorizedException,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import * as nodemailer from 'nodemailer';
-import { RegisterDto } from './dto/register.dto';
+import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { role_enum } from '@prisma/client';
+import { randomBytes } from 'crypto';
+// Giả sử bạn có mailer service (có thể dùng nodemailer), dưới đây chỉ mô phỏng
+// import { MailerService } from '../mailer/mailer.service';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private prisma: PrismaService,
+    private usersService: UsersService,
     private jwtService: JwtService,
+    // private mailerService: MailerService,
   ) {}
 
-  // Đăng ký
-  async register(registerDto: RegisterDto) {
-    const { full_name, email, password, phone, role } = registerDto;
-    const existingUser = await this.prisma.users.findUnique({
-      where: { email },
-    });
-    if (existingUser) {
-      throw new BadRequestException('Email đã tồn tại');
+  async validateUser(email: string, password: string) {
+    const user = await this.usersService.findByEmail(email);
+    if (
+      user &&
+      user.password &&
+      (await bcrypt.compare(password, user.password))
+    ) {
+      // Remove password from the result before returning
+      return { ...user, password: undefined };
     }
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = await this.prisma.users.create({
-      data: {
-        full_name,
-        email,
-        password: hashedPassword,
-        phone,
-        role: role || role_enum.student, // Mặc định là 'student'
-        created_at: new Date(),
-      },
-    });
-    return { message: 'Đăng ký thành công' };
+    return null;
   }
 
-  // Đăng nhập
   async login(loginDto: LoginDto) {
-    const { email, password } = loginDto;
-    const user = await this.prisma.users.findUnique({ where: { email } });
-    if (!user || !(await bcrypt.compare(password, user.password || ''))) {
-      throw new BadRequestException('Thông tin đăng nhập không đúng');
+    const user = await this.validateUser(loginDto.email, loginDto.password);
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
     }
-    const payload = { id: user.id, role: user.role };
-    const token = this.jwtService.sign(payload);
+    const payload = { sub: String(user.id), email: user.email };
     return {
-      token,
-      user: {
-        id: user.id,
-        full_name: user.full_name,
-        email: user.email,
-        role: user.role,
-      },
+      user,
+      token: this.jwtService.sign(payload),
     };
   }
 
-  // Quên mật khẩu
+  async register(registerDto: RegisterDto) {
+    const user = await this.usersService.register(registerDto);
+    const payload = {
+      sub: String(user.user.id),
+      email: String(user.user.email),
+    };
+    return {
+      user,
+      token: this.jwtService.sign(payload),
+    };
+  }
+
+  logout() {
+    // Với JWT, logout chủ yếu xử lý trên FE
+    return { message: 'Logged out successfully' };
+  }
+
+  // Forgot Password: Tạo token, lưu vào user và gửi email
   async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
     const { email } = forgotPasswordDto;
-    const user = await this.prisma.users.findUnique({ where: { email } });
+    const user = await this.usersService.findByEmail(email);
     if (!user) {
-      throw new NotFoundException('Không tìm thấy người dùng');
+      throw new NotFoundException('User not found');
     }
-    const resetToken = Math.random().toString(36).slice(2);
-    await this.prisma.users.update({
-      where: { email },
-      data: { reset_token: resetToken },
-    });
-
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: 'Khôi phục mật khẩu',
-      text: `Nhấp vào liên kết để đặt lại mật khẩu: http://localhost:5173/reset-password?token=${resetToken}`,
-    };
-    await transporter.sendMail(mailOptions);
-    return { message: 'Liên kết khôi phục mật khẩu đã được gửi qua email' };
+    // Tạo token (ở đây dùng randomBytes, bạn cũng có thể dùng JWT)
+    const resetToken = randomBytes(32).toString('hex');
+    // Lưu token vào user (reset_token)
+    await this.usersService.setResetToken(email, resetToken);
+    // Gửi email cho user với token này
+    // Ví dụ: gửi link reset mật khẩu: http://frontend-url/reset-password?token=resetToken
+    // await this.mailerService.sendMail({
+    //   to: email,
+    //   subject: 'Reset your password',
+    //   text: `Please use the following link to reset your password: http://localhost:3001/reset-password?token=${resetToken}`,
+    // });
+    // Để demo, ta chỉ trả về token (trong production không trả về)
+    return { message: 'Reset token generated and email sent', resetToken };
   }
 
-  // Khôi phục mật khẩu
+  // Reset Password: Xác thực token và cập nhật mật khẩu mới
   async resetPassword(resetPasswordDto: ResetPasswordDto) {
     const { token, new_password } = resetPasswordDto;
-    const user = await this.prisma.users.findFirst({
-      where: { reset_token: token },
-    });
+    const user = await this.usersService.findByResetToken(token);
     if (!user) {
-      throw new BadRequestException('Token không hợp lệ hoặc đã hết hạn');
+      throw new NotFoundException('Invalid or expired reset token');
     }
-    const hashedPassword = await bcrypt.hash(new_password, 10);
-    await this.prisma.users.update({
-      where: { id: user.id },
-      data: { password: hashedPassword, reset_token: null },
-    });
-    return { message: 'Đặt lại mật khẩu thành công' };
+    // Cập nhật mật khẩu mới và xóa reset_token
+    return this.usersService.updatePassword(user.id, new_password);
   }
 }

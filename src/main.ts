@@ -1,13 +1,26 @@
-// src/main.ts
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { ConfigService } from '@nestjs/config';
+import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
-  // Tạo ứng dụng NestJS từ AppModule
   const app = await NestFactory.create(AppModule);
-  // Cho phép CORS (nếu cần cho FE)
-  app.enableCors();
-  await app.listen(3000);
-  console.log('Server chạy trên cổng 3000');
+  const configService = app.get(ConfigService);
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+    }),
+  );
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.enableCors({
+    origin: 'http://localhost:5173', // ví dụ FE chạy trên port 3001
+    credentials: true,
+  });
+
+  // Bật ValidationPipe để tự động validate request từ FE
+  app.useGlobalPipes(new ValidationPipe());
+  const port = configService.get<string>('PORT') || '3000';
+  await app.listen(port);
 }
 bootstrap();
