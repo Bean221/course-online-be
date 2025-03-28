@@ -2,15 +2,16 @@ import {
   Injectable,
   UnauthorizedException,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
-import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { randomBytes } from 'crypto';
+import { PrismaService } from '../prisma/prisma.service';
+import { MailerService } from '@nestjs-modules/mailer';
 // Giả sử bạn có mailer service (có thể dùng nodemailer), dưới đây chỉ mô phỏng
 // import { MailerService } from '../mailer/mailer.service';
 
@@ -19,7 +20,8 @@ export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
-    // private mailerService: MailerService,
+    private prisma: PrismaService,
+    private mailerService: MailerService,
   ) {}
 
   async validateUser(email: string, password: string) {
@@ -65,25 +67,34 @@ export class AuthService {
   }
 
   // Forgot Password: Tạo token, lưu vào user và gửi email
-  async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
-    const { email } = forgotPasswordDto;
-    const user = await this.usersService.findByEmail(email);
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    const user = await this.prisma.users.findUnique({ where: { email } });
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    // Tạo token (ở đây dùng randomBytes, bạn cũng có thể dùng JWT)
-    const resetToken = randomBytes(32).toString('hex');
-    // Lưu token vào user (reset_token)
-    await this.usersService.setResetToken(email, resetToken);
-    // Gửi email cho user với token này
-    // Ví dụ: gửi link reset mật khẩu: http://frontend-url/reset-password?token=resetToken
-    // await this.mailerService.sendMail({
-    //   to: email,
-    //   subject: 'Reset your password',
-    //   text: `Please use the following link to reset your password: http://localhost:3001/reset-password?token=${resetToken}`,
-    // });
-    // Để demo, ta chỉ trả về token (trong production không trả về)
-    return { message: 'Reset token generated and email sent', resetToken };
+
+    const payload = { sub: String(user.id), email: user.email };
+    // Tạo reset token, có thời gian hết hạn ngắn (ví dụ 15 phút)
+    const resetToken = this.jwtService.sign(payload, { expiresIn: '15m' });
+
+    // Ví dụ về resetLink: có thể là URL của front-end chứa trang đặt lại mật khẩu
+    const resetLink = `http://localhost:3000/reset-password?token=${resetToken}`;
+
+    // Gửi email sử dụng template "forgot-password.hbs"
+    await this.mailerService.sendMail({
+      to: email,
+      subject: 'Yêu cầu đặt lại mật khẩu',
+      template: './forgot-password', // Tương ứng với file forgot-password.hbs
+      context: {
+        name: user.full_name || 'User',
+        resetLink,
+      },
+    });
+
+    return {
+      message:
+        'Email đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư của bạn.',
+    };
   }
 
   // Reset Password: Xác thực token và cập nhật mật khẩu mới
@@ -95,5 +106,48 @@ export class AuthService {
     }
     // Cập nhật mật khẩu mới và xóa reset_token
     return this.usersService.updatePassword(user.id, new_password);
+  }
+
+  // đổi mk
+  async changePassword(
+    userId: number,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<{ message: string }> {
+    console.log('UserId:', userId);
+    console.log('currentPassword:', currentPassword);
+    console.log('newPassword:', newPassword);
+
+    const user = await this.prisma.users.findUnique({
+      where: {
+        id: Number(userId), // chuyển đổi sang số
+      },
+    });
+    if (!user) {
+      console.error('User not found for id:', userId);
+      throw new NotFoundException('User not found');
+    }
+
+    console.log('User password hash:', user.password);
+
+    if (!user.password) {
+      throw new BadRequestException('User password is not set');
+    }
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    console.log('Password match:', isMatch);
+
+    if (!isMatch) {
+      throw new BadRequestException('Mật khẩu hiện tại không đúng');
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    await this.prisma.users.update({
+      where: { id: Number(userId) },
+      data: { password: hashedPassword },
+    });
+
+    return { message: 'Đổi mật khẩu thành công' };
   }
 }

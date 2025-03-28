@@ -9,6 +9,12 @@ export enum RoleEnum {
   ADMIN = 'admin',
 }
 
+export enum Gender {
+  MALE = 'MALE',
+  FEMALE = 'FEMALE',
+  OTHER = 'OTHER',
+}
+
 export class UpdateUserDto extends PartialType(CreateUserDto) {
   @IsOptional()
   @IsString()
@@ -25,4 +31,11 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   @IsOptional()
   @IsEnum(role_enum, { message: 'role phải là student, manager hoặc admin' })
   role?: role_enum;
+
+  @IsOptional()
+  @IsEnum(Gender, { message: 'giới tính phải là male hoặc female hoặc OTHER' })
+  gender?: Gender;
+
+  birth_date?: Date;
+  address?: string;
 }

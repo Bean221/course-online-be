@@ -55,6 +55,9 @@ export class UsersService {
         role: user.role,
         created_at: user.created_at,
         updated_at: user.updated_at,
+        gender: user.gender,
+        birth_date: user.birth_date,
+        address: user.address,
       },
       token,
     };
@@ -80,6 +83,9 @@ export class UsersService {
         role: true,
         created_at: true,
         updated_at: true,
+        gender: true,
+        birth_date: true,
+        address: true,
       },
     });
   }
@@ -95,6 +101,9 @@ export class UsersService {
         role: true,
         created_at: true,
         updated_at: true,
+        gender: true,
+        birth_date: true,
+        address: true,
       },
     });
     if (!user) {
@@ -147,6 +156,7 @@ export class UsersService {
         data: {
           ...updateUserDto,
           role: updateUserDto.role,
+          gender: updateUserDto.gender,
         },
         select: {
           id: true,
@@ -155,6 +165,9 @@ export class UsersService {
           phone: true,
           created_at: true,
           updated_at: true,
+          gender: true,
+          birth_date: true,
+          address: true,
         },
       });
       return updatedUser;
@@ -178,6 +191,9 @@ export class UsersService {
         role: true,
         created_at: true,
         updated_at: true,
+        gender: true,
+        birth_date: true,
+        address: true,
       },
     });
   }

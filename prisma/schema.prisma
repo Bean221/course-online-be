@@ -61,6 +61,12 @@ enum payment_method_enum {
   PayOS
   other
 }
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
 
 //////////////////////////////////////////////////////
 // 2. Model users
@@ -72,6 +78,9 @@ model users {
   email      String?  @unique
   password   String?
   phone      String?
+  address     String?    // Thêm địa chỉ người dùng
+  gender      Gender?    // Thêm giới tính (có thể sử dụng enum nếu muốn hạn chế giá trị)
+  birth_date  DateTime?  // Thêm ngày sinh
   role       role_enum?
   reset_token String?   
   created_at DateTime? @default(now())
