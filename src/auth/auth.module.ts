@@ -33,7 +33,7 @@ import { join } from 'path';
         from: '"No Reply" <tuan.leminh@ncc.asia>',
       },
       template: {
-        dir: join(__dirname, 'templates'), // Đảm bảo file template nằm trong thư mục này
+        dir: join(process.cwd(), 'src/auth/templates'), // Đảm bảo file template nằm trong thư mục này
         adapter: new HandlebarsAdapter(), // sử dụng Handlebars
         options: {
           strict: true,

@@ -78,7 +78,7 @@ export class AuthService {
     const resetToken = this.jwtService.sign(payload, { expiresIn: '15m' });
 
     // Ví dụ về resetLink: có thể là URL của front-end chứa trang đặt lại mật khẩu
-    const resetLink = `http://localhost:3000/reset-password?token=${resetToken}`;
+    const resetLink = `http://localhost:5173/reset-password?token=${resetToken}`;
 
     // Gửi email sử dụng template "forgot-password.hbs"
     await this.mailerService.sendMail({
@@ -98,14 +98,43 @@ export class AuthService {
   }
 
   // Reset Password: Xác thực token và cập nhật mật khẩu mới
-  async resetPassword(resetPasswordDto: ResetPasswordDto) {
-    const { token, new_password } = resetPasswordDto;
-    const user = await this.usersService.findByResetToken(token);
-    if (!user) {
-      throw new NotFoundException('Invalid or expired reset token');
+  async resetPassword(
+    resetPasswordDto: ResetPasswordDto,
+  ): Promise<{ message: string }> {
+    const { token, newPassword } = resetPasswordDto;
+    interface JwtPayload {
+      sub: string;
+      email: string;
+      iat?: number;
+      exp?: number;
     }
-    // Cập nhật mật khẩu mới và xóa reset_token
-    return this.usersService.updatePassword(user.id, new_password);
+
+    let payload: JwtPayload;
+    try {
+      payload = this.jwtService.verify<JwtPayload>(token); // Giải mã token reset
+    } catch {
+      throw new BadRequestException('Reset token không hợp lệ hoặc đã hết hạn');
+    }
+
+    // payload phải chứa trường sub (user id)
+    const userId = Number(payload.sub);
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Băm mật khẩu mới
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    await this.prisma.users.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+
+    return { message: 'Đổi mật khẩu thành công' };
   }
 
   // đổi mk
