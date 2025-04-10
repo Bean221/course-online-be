@@ -61,30 +61,30 @@ enum payment_method_enum {
   PayOS
   other
 }
+
 enum Gender {
   MALE
   FEMALE
   OTHER
 }
 
-
 //////////////////////////////////////////////////////
 // 2. Model users
 //////////////////////////////////////////////////////
 
 model users {
-  id         Int      @id @default(autoincrement())
-  full_name  String?
-  email      String?  @unique
-  password   String?
-  phone      String?
-  address     String?    // Thêm địa chỉ người dùng
-  gender      Gender?    // Thêm giới tính (có thể sử dụng enum nếu muốn hạn chế giá trị)
-  birth_date  DateTime?  // Thêm ngày sinh
-  role       role_enum?
-  reset_token String?   
-  created_at DateTime? @default(now())
-  updated_at DateTime? @updatedAt
+  id          Int        @id @default(autoincrement())
+  full_name   String?
+  email       String?    @unique
+  password    String?
+  phone       String?
+  address     String? // Thêm địa chỉ người dùng
+  gender      Gender? // Thêm giới tính (có thể sử dụng enum nếu muốn hạn chế giá trị)
+  birth_date  DateTime? // Thêm ngày sinh
+  role        role_enum?
+  reset_token String?
+  created_at  DateTime?  @default(now())
+  updated_at  DateTime?  @updatedAt
 
   // Quan hệ ngược (nếu cần)
   // ielts_exam_registrations       ielts_exam_registrations[]
@@ -94,8 +94,6 @@ model users {
   // consultations                  consultations[]
 
   ielts_exam_registrations ielts_exam_registrations[]
-
-  ielts_mock_registrations ielts_mock_registrations[]
 
   ielts_center_mock_registrations ielts_center_mock_registrations[]
 
@@ -109,14 +107,13 @@ model users {
 //////////////////////////////////////////////////////
 
 model courses {
-  id          Int      @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   name        String?
   description String?
   price       Decimal?
   is_online   Boolean?
   created_at  DateTime? @default(now())
   updated_at  DateTime? @updatedAt
-
 }
 
 //////////////////////////////////////////////////////
@@ -124,43 +121,44 @@ model courses {
 //////////////////////////////////////////////////////
 
 model ielts_tests {
-  id          Int        @id @default(autoincrement())
+  id          Int         @id @default(autoincrement())
   name        String?
   description String?
   skill       skill_enum?
-  created_at  DateTime? @default(now())
-  updated_at  DateTime? @updatedAt
+  created_at  DateTime?   @default(now())
+  updated_at  DateTime?   @updatedAt
 
   // 1-n
   ielts_exam_registrations ielts_exam_registrations[]
 }
 
 model ielts_exam_registrations {
-  id           Int                     @id @default(autoincrement())
+  id           Int                       @id @default(autoincrement())
   user_id      Int?
   test_id      Int?
-  exam_date    DateTime?  
+  exam_date    DateTime?
   location     String?
-  is_at_center Boolean?                @default(false)
+  is_at_center Boolean?                  @default(false)
   status       registration_status_enum?
-  created_at   DateTime?             @default(now())
-  updated_at   DateTime?             @updatedAt
+  created_at   DateTime?                 @default(now())
+  updated_at   DateTime?                 @updatedAt
 
   // FK -> users
-  users       users? @relation(fields: [user_id], references: [id])
+  users       users?       @relation(fields: [user_id], references: [id])
   // FK -> ielts_tests
   ielts_tests ielts_tests? @relation(fields: [test_id], references: [id])
 
   // Kết quả (1-n)
   ielts_skill_results ielts_skill_results[]
 }
+
 model ielts_skill_results {
-  id              Int    @id @default(autoincrement())
+  id              Int       @id @default(autoincrement())
   registration_id Int?
   score           Float?
   answer_detail   String?
-  created_at      DateTime?           @default(now())
-  updated_at      DateTime?             @updatedAt
+  created_at      DateTime? @default(now())
+  updated_at      DateTime? @updatedAt
 
   // FK -> ielts_skill_tests
 
@@ -172,44 +170,72 @@ model ielts_skill_results {
 // 5. Model ielts_mock_tests (Thi thử online)
 //////////////////////////////////////////////////////
 
+// MODEL ĐỀ THI CHO IELTS MOCK TEST
 model ielts_mock_tests {
-  id          Int        @id @default(autoincrement())
-  name        String?
+  id          Int      @id @default(autoincrement())
+  name        String
   description String?
-  skill       skill_enum?
-  created_at  DateTime? @default(now())
-  updated_at  DateTime? @updatedAt
+  type        String // "full" hoặc "skill"
+  month       String? // Ví dụ: "2023-10"
+  // skill tổng hợp (trong 1 đề có 4 kỹ năng)
+  // Để thể hiện đề thi tổng hợp, bạn có thể lưu như dạng JSON lưu thông tin kết hợp các phần hoặc tạo 4 trường riêng
+  reading     Boolean  @default(false) // Nếu đề này có phần Reading
+  listening   Boolean  @default(false)
+  writing     Boolean  @default(false)
+  speaking    Boolean  @default(false)
+  // Các thông tin thêm (VD: time, deadline,…)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
 
+  // Quan hệ 1-n với bảng câu hỏi chung cho đề thi – chúng ta sẽ phân biệt theo "skill"
+  questions ielts_mock_test_questions[]
 
-  ielts_mock_registrations ielts_mock_registrations[]
+  // Kết quả thi cho đề này (nhiều user thi cùng 1 đề)
+  exam_results ielts_mock_results[]
 }
 
-model ielts_mock_registrations {
-  id           Int                     @id @default(autoincrement())
-  user_id      Int?
-  mock_test_id Int?
-  exam_date    DateTime?
-  status       registration_status_enum?
-  created_at   DateTime?            @default(now())
-  updated_at   DateTime?            @updatedAt
+// MODEL CHI TIẾT CÂU HỎI
+model ielts_mock_test_questions {
+  id             Int        @id @default(autoincrement())
+  mock_test_id   Int
+  // Loại câu hỏi, có thể là reading, listening, writing, speaking
+  skill          skill_enum // Sử dụng enum skill_enum có giá trị: listening, reading, writing, speaking
+  part           Int? // Part 1, 2, 3, 4  question_type  String?     // "true_false", "one_word", "multiple_choice", v.v.
+  question_text  String // Nội dung câu hỏi, mô tả hoặc đề bài
+  // Với các câu hỏi lựa chọn:
+  options        String? // JSON string lưu danh sách các option, nếu applicable
+  // Đáp án đúng
+  correct_answer String? // Nếu có (với writing/speaking, việc chấm không đơn giản đối chiếu)
+  created_at     DateTime   @default(now())
+  updated_at     DateTime   @updatedAt
 
-  // FK
-  users            users?            @relation(fields: [user_id], references: [id])
-  ielts_mock_tests ielts_mock_tests? @relation(fields: [mock_test_id], references: [id])
-
-  ielts_mock_results ielts_mock_results[]
+  ielts_mock_tests ielts_mock_tests @relation(fields: [mock_test_id], references: [id])
 }
 
+// MODEL KẾT QUẢ THI
 model ielts_mock_results {
-  id             Int    @id @default(autoincrement())
-  registration_id Int?
-  score          Float?
-  answer_detail  String?
-  created_at     DateTime? @default(now())
-  updated_at     DateTime? @updatedAt
+  id              Int    @id @default(autoincrement())
+  // Nếu có đăng ký/thí sinh, lưu user_id, registration_id (ở schema ban đầu có registration_id)
+  user_id         Int?
+  mock_test_id    Int // Liên kết với đề thi
+  // Điểm thi của từng kỹ năng
+  reading_score   Float? // Có thể NULL nếu đề không có phần Reading
+  listening_score Float?
+  writing_score   Float?
+  speaking_score  Float?
+  overall_score   Float?   // Điểm tổng
 
-  // FK
-  ielts_mock_registrations ielts_mock_registrations? @relation(fields: [registration_id], references: [id])
+  // Lưu chi tiết theo từng phần (JSON)
+  answer_detail       String? // Ví dụ: { reading: { answers: {...}, details: [...] }, listening: {...}, ... }
+  // URL file (cho listening và speaking nếu có)
+  listening_audio_url String? // URL file MP3 của bài nghe (nếu đề thi lưu file này)
+  speaking_audio_url  String? // URL file ghi âm nói của thí sinh
+  // Nếu file writing (essay) được lưu đính kèm, bạn có thể có trường file_url
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  ielts_mock_tests ielts_mock_tests @relation(fields: [mock_test_id], references: [id])
 }
 
 //////////////////////////////////////////////////////
@@ -217,28 +243,28 @@ model ielts_mock_results {
 //////////////////////////////////////////////////////
 
 model ielts_center_mock_tests {
-  id          Int        @id @default(autoincrement())
+  id          Int         @id @default(autoincrement())
   name        String?
   description String?
   skill       skill_enum?
-  created_at  DateTime?         @default(now())
-  updated_at  DateTime?         @updatedAt
+  created_at  DateTime?   @default(now())
+  updated_at  DateTime?   @updatedAt
 
   ielts_center_mock_registrations ielts_center_mock_registrations[]
 }
 
 model ielts_center_mock_registrations {
-  id                 Int    @id @default(autoincrement())
-  user_id            Int?
+  id                  Int                       @id @default(autoincrement())
+  user_id             Int?
   center_mock_test_id Int?
-  exam_date          DateTime?
-  location           String?
-  status             registration_status_enum?
-  created_at         DateTime?       @default(now())
-  updated_at         DateTime?       @updatedAt
+  exam_date           DateTime?
+  location            String?
+  status              registration_status_enum?
+  created_at          DateTime?                 @default(now())
+  updated_at          DateTime?                 @updatedAt
 
   // FK -> users
-  users users? @relation(fields: [user_id], references: [id])
+  users                   users?                   @relation(fields: [user_id], references: [id])
   // FK -> ielts_center_mock_tests
   ielts_center_mock_tests ielts_center_mock_tests? @relation(fields: [center_mock_test_id], references: [id])
 
@@ -246,7 +272,7 @@ model ielts_center_mock_registrations {
 }
 
 model ielts_center_mock_results {
-  id              Int    @id @default(autoincrement())
+  id              Int       @id @default(autoincrement())
   registration_id Int?
   score           Float?
   answer_detail   String?
@@ -262,18 +288,18 @@ model ielts_center_mock_results {
 //////////////////////////////////////////////////////
 
 model payments {
-  id             Int                 @id @default(autoincrement())
+  id             Int                     @id @default(autoincrement())
   user_id        Int?
   reference_type payment_reference_enum?
   reference_id   Int?
   amount         Decimal?
   status         payment_status_enum?
   payment_method payment_method_enum?
-  invoice_sent   Boolean?            @default(false)
+  invoice_sent   Boolean?                @default(false)
   invoice_url    String?
-  payment_date   DateTime?         @default(now())
-  created_at     DateTime?         @default(now())
-  updated_at     DateTime?         @updatedAt
+  payment_date   DateTime?               @default(now())
+  created_at     DateTime?               @default(now())
+  updated_at     DateTime?               @updatedAt
 
   // FK -> users
   users users? @relation(fields: [user_id], references: [id])
@@ -284,13 +310,13 @@ model payments {
 //////////////////////////////////////////////////////
 
 model consultations {
-  id                 Int    @id @default(autoincrement())
-  user_id            Int?
-  message            String?
-  status             consult_status_enum?
-  consultation_type  consultation_type_enum?
-  created_at         DateTime?  @default(now())
-  updated_at         DateTime?  @updatedAt
+  id                Int                     @id @default(autoincrement())
+  user_id           Int?
+  message           String?
+  status            consult_status_enum?
+  consultation_type consultation_type_enum?
+  created_at        DateTime?               @default(now())
+  updated_at        DateTime?               @updatedAt
 
   // FK -> users
   users users? @relation(fields: [user_id], references: [id])
@@ -301,12 +327,12 @@ model consultations {
 //////////////////////////////////////////////////////
 
 model job_applications {
-  id         Int    @id @default(autoincrement())
+  id         Int       @id @default(autoincrement())
   full_name  String?
   email      String?
   phone      String?
   cv_url     String?
   message    String?
-  created_at DateTime?  @default(now())
-  updated_at DateTime?  @updatedAt
+  created_at DateTime? @default(now())
+  updated_at DateTime? @updatedAt
 }

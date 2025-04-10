@@ -16,6 +16,7 @@ import { JobApplicationsModule } from './job_applications/job_applications.modul
 
 @Module({
   imports: [
+    IeltsTestsModule,
     UsersModule,
     CoursesModule,
     IeltsTestsModule,
