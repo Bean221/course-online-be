@@ -1,6 +1,6 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { CreateUserDto } from './create-user.dto';
-import { IsOptional, IsString, IsEnum } from 'class-validator';
+import { IsOptional, IsString, IsEnum, IsDateString } from 'class-validator';
 import { role_enum } from '@prisma/client';
 
 export enum RoleEnum {
@@ -33,9 +33,13 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   role?: role_enum;
 
   @IsOptional()
-  @IsEnum(Gender, { message: 'giới tính phải là male hoặc female hoặc OTHER' })
+  @IsEnum(Gender, { message: 'giới tính phải là MALE hoặc FEMALE hoặc OTHER' })
   gender?: Gender;
 
-  birth_date?: Date;
-  address?: string;
+  @IsDateString()
+  birth_date: string;
+
+  @IsOptional()
+  @IsString()
+  address: string;
 }
