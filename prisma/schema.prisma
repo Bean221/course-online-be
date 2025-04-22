@@ -1,17 +1,11 @@
-// schema.prisma
-
 datasource db {
-  provider = "postgresql" // hoặc "mysql", "sqlite", ...
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 generator client {
   provider = "prisma-client-js"
 }
-
-//////////////////////////////////////////////////////
-// 1. Định nghĩa ENUM
-//////////////////////////////////////////////////////
 
 enum role_enum {
   student
@@ -68,43 +62,25 @@ enum Gender {
   OTHER
 }
 
-//////////////////////////////////////////////////////
-// 2. Model users
-//////////////////////////////////////////////////////
-
 model users {
   id          Int        @id @default(autoincrement())
   full_name   String?
   email       String?    @unique
   password    String?
   phone       String?
-  address     String? // Thêm địa chỉ người dùng
-  gender      Gender? // Thêm giới tính (có thể sử dụng enum nếu muốn hạn chế giá trị)
-  birth_date  DateTime? // Thêm ngày sinh
+  address     String?
+  gender      Gender?
+  birth_date  DateTime?
   role        role_enum?
   reset_token String?
   created_at  DateTime?  @default(now())
   updated_at  DateTime?  @updatedAt
 
-  // Quan hệ ngược (nếu cần)
-  // ielts_exam_registrations       ielts_exam_registrations[]
-  // ielts_mock_registrations       ielts_mock_registrations[]
-  // ielts_center_mock_registrations ielts_center_mock_registrations[]
-  // payments                       payments[]
-  // consultations                  consultations[]
-
-  ielts_exam_registrations ielts_exam_registrations[]
-
-  ielts_center_mock_registrations ielts_center_mock_registrations[]
-
-  payments payments[]
-
-  consultations consultations[]
+  ielts_exam_registrations           ielts_exam_registrations[]
+  ielts_center_mock_registrations    ielts_center_mock_registrations[]
+  payments                           Payment[]
+  consultations                      consultations[]
 }
-
-//////////////////////////////////////////////////////
-// 3. Model courses (chỉ hiển thị)
-//////////////////////////////////////////////////////
 
 model courses {
   id          Int       @id @default(autoincrement())
@@ -116,19 +92,14 @@ model courses {
   updated_at  DateTime? @updatedAt
 }
 
-//////////////////////////////////////////////////////
-// 4. Model ielts_tests (Thi chính thức)
-//////////////////////////////////////////////////////
-
 model ielts_tests {
-  id          Int         @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   name        String?
   description String?
   skill       skill_enum?
-  created_at  DateTime?   @default(now())
-  updated_at  DateTime?   @updatedAt
+  created_at  DateTime? @default(now())
+  updated_at  DateTime? @updatedAt
 
-  // 1-n
   ielts_exam_registrations ielts_exam_registrations[]
 }
 
@@ -143,12 +114,9 @@ model ielts_exam_registrations {
   created_at   DateTime?                 @default(now())
   updated_at   DateTime?                 @updatedAt
 
-  // FK -> users
   users       users?       @relation(fields: [user_id], references: [id])
-  // FK -> ielts_tests
   ielts_tests ielts_tests? @relation(fields: [test_id], references: [id])
 
-  // Kết quả (1-n)
   ielts_skill_results ielts_skill_results[]
 }
 
@@ -160,87 +128,57 @@ model ielts_skill_results {
   created_at      DateTime? @default(now())
   updated_at      DateTime? @updatedAt
 
-  // FK -> ielts_skill_tests
-
-  // FK -> ielts_exam_registrations
   ielts_exam_registrations ielts_exam_registrations? @relation(fields: [registration_id], references: [id])
 }
 
-//////////////////////////////////////////////////////
-// 5. Model ielts_mock_tests (Thi thử online)
-//////////////////////////////////////////////////////
-
-// MODEL ĐỀ THI CHO IELTS MOCK TEST
 model ielts_mock_tests {
   id          Int      @id @default(autoincrement())
   name        String
   description String?
-  type        String // "full" hoặc "skill"
-  month       String? // Ví dụ: "2023-10"
-  // skill tổng hợp (trong 1 đề có 4 kỹ năng)
-  // Để thể hiện đề thi tổng hợp, bạn có thể lưu như dạng JSON lưu thông tin kết hợp các phần hoặc tạo 4 trường riêng
-  reading     Boolean  @default(false) // Nếu đề này có phần Reading
+  type        String   @default("all")
+  month       String?
+  reading     Boolean  @default(false)
   listening   Boolean  @default(false)
   writing     Boolean  @default(false)
   speaking    Boolean  @default(false)
-  // Các thông tin thêm (VD: time, deadline,…)
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
 
-  // Quan hệ 1-n với bảng câu hỏi chung cho đề thi – chúng ta sẽ phân biệt theo "skill"
-  questions ielts_mock_test_questions[]
-
-  // Kết quả thi cho đề này (nhiều user thi cùng 1 đề)
+  questions    ielts_mock_test_questions[]
   exam_results ielts_mock_results[]
 }
 
-// MODEL CHI TIẾT CÂU HỎI
 model ielts_mock_test_questions {
   id             Int        @id @default(autoincrement())
   mock_test_id   Int
-  // Loại câu hỏi, có thể là reading, listening, writing, speaking
-  skill          skill_enum // Sử dụng enum skill_enum có giá trị: listening, reading, writing, speaking
-  part           Int? // Part 1, 2, 3, 4  question_type  String?     // "true_false", "one_word", "multiple_choice", v.v.
-  question_text  String // Nội dung câu hỏi, mô tả hoặc đề bài
-  // Với các câu hỏi lựa chọn:
-  options        String? // JSON string lưu danh sách các option, nếu applicable
-  // Đáp án đúng
-  correct_answer String? // Nếu có (với writing/speaking, việc chấm không đơn giản đối chiếu)
+  skill          skill_enum
+  part           Int?
+  question_text  String
+  options        String?
+  correct_answer String?
   created_at     DateTime   @default(now())
   updated_at     DateTime   @updatedAt
 
   ielts_mock_tests ielts_mock_tests @relation(fields: [mock_test_id], references: [id])
 }
 
-// MODEL KẾT QUẢ THI
 model ielts_mock_results {
   id              Int    @id @default(autoincrement())
-  // Nếu có đăng ký/thí sinh, lưu user_id, registration_id (ở schema ban đầu có registration_id)
   user_id         Int?
-  mock_test_id    Int // Liên kết với đề thi
-  // Điểm thi của từng kỹ năng
-  reading_score   Float? // Có thể NULL nếu đề không có phần Reading
+  mock_test_id    Int
+  reading_score   Float?
   listening_score Float?
   writing_score   Float?
   speaking_score  Float?
-  overall_score   Float?   // Điểm tổng
-
-  // Lưu chi tiết theo từng phần (JSON)
-  answer_detail       String? // Ví dụ: { reading: { answers: {...}, details: [...] }, listening: {...}, ... }
-  // URL file (cho listening và speaking nếu có)
-  listening_audio_url String? // URL file MP3 của bài nghe (nếu đề thi lưu file này)
-  speaking_audio_url  String? // URL file ghi âm nói của thí sinh
-  // Nếu file writing (essay) được lưu đính kèm, bạn có thể có trường file_url
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  overall_score   Float?
+  answer_detail   String?
+  listening_audio_url String?
+  speaking_audio_url  String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
 
   ielts_mock_tests ielts_mock_tests @relation(fields: [mock_test_id], references: [id])
 }
-
-//////////////////////////////////////////////////////
-// 6. Model ielts_center_mock_tests (Thi thử offline tại trung tâm)
-//////////////////////////////////////////////////////
 
 model ielts_center_mock_tests {
   id          Int         @id @default(autoincrement())
@@ -263,9 +201,7 @@ model ielts_center_mock_registrations {
   created_at          DateTime?                 @default(now())
   updated_at          DateTime?                 @updatedAt
 
-  // FK -> users
   users                   users?                   @relation(fields: [user_id], references: [id])
-  // FK -> ielts_center_mock_tests
   ielts_center_mock_tests ielts_center_mock_tests? @relation(fields: [center_mock_test_id], references: [id])
 
   ielts_center_mock_results ielts_center_mock_results[]
@@ -279,35 +215,43 @@ model ielts_center_mock_results {
   created_at      DateTime? @default(now())
   updated_at      DateTime? @updatedAt
 
-  // FK
   ielts_center_mock_registrations ielts_center_mock_registrations? @relation(fields: [registration_id], references: [id])
 }
 
-//////////////////////////////////////////////////////
-// 7. Model payments
-//////////////////////////////////////////////////////
-
-model payments {
-  id             Int                     @id @default(autoincrement())
-  user_id        Int?
-  reference_type payment_reference_enum?
-  reference_id   Int?
-  amount         Decimal?
-  status         payment_status_enum?
-  payment_method payment_method_enum?
-  invoice_sent   Boolean?                @default(false)
-  invoice_url    String?
-  payment_date   DateTime?               @default(now())
-  created_at     DateTime?               @default(now())
-  updated_at     DateTime?               @updatedAt
-
-  // FK -> users
-  users users? @relation(fields: [user_id], references: [id])
+model Registration {
+  id           Int                      @id @default(autoincrement())
+  fullName     String
+  dob          DateTime
+  gender       Gender
+  phone        String
+  email        String
+  idNumber     String
+  residence    String
+  location     String
+  format       String
+  examType     String
+  price        Decimal
+  selectedDate DateTime
+  status       registration_status_enum
+  createdAt    DateTime                 @default(now())
+  payments     Payment[]
 }
 
-//////////////////////////////////////////////////////
-// 8. Model consultations
-//////////////////////////////////////////////////////
+model Payment {
+  id             Int                  @id @default(autoincrement())
+  registration   Registration         @relation(fields: [registrationId], references: [id])
+  registrationId Int
+  user           users?               @relation(fields: [userId], references: [id])
+  userId         Int?
+  payosOrderId   String               @unique
+  amount         Decimal
+  status         payment_status_enum
+  qrUrl          String?
+  paymentMethod  payment_method_enum?
+  paymentDate    DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+}
 
 model consultations {
   id                Int                     @id @default(autoincrement())
@@ -318,13 +262,8 @@ model consultations {
   created_at        DateTime?               @default(now())
   updated_at        DateTime?               @updatedAt
 
-  // FK -> users
   users users? @relation(fields: [user_id], references: [id])
 }
-
-//////////////////////////////////////////////////////
-// 9. Model job_applications
-//////////////////////////////////////////////////////
 
 model job_applications {
   id         Int       @id @default(autoincrement())
