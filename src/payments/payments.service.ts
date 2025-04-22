@@ -1,16 +1,23 @@
 import { Injectable } from '@nestjs/common';
-import PayOS from '@payos/node';
 import { PrismaService } from '../prisma/prisma.service';
-import { MailService } from './mail.service'; // Giả định bạn đã có MailService
+import PayOS from '@payos/node';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
-export class PaymentService {
+export class PaymentsService {
   private payos: PayOS;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly mailService: MailService,
   ) {
+    if (
+      !process.env.PAYOS_CLIENT_ID ||
+      !process.env.PAYOS_API_KEY ||
+      !process.env.PAYOS_CHECKSUM_KEY
+    ) {
+      throw new Error('PayOS environment variables are not configured');
+    }
     this.payos = new PayOS(
       process.env.PAYOS_CLIENT_ID,
       process.env.PAYOS_API_KEY,
@@ -18,64 +25,67 @@ export class PaymentService {
     );
   }
 
-  async createPaymentLink(data: {
-    fullName: string;
-    email: string;
-    studentId: string;
-    testDate: string;
-  }) {
-    const orderCode = Date.now(); // Mã đơn hàng duy nhất
-    const amount = 100000; // 100,000 VND
+  async createPaymentLink(registrationId: number) {
+    const registration = await this.prisma.registration.findUnique({
+      where: { id: registrationId },
+    });
 
+    if (!registration) {
+      throw new Error('Registration not found');
+    }
+
+    const orderCode = Date.now();
     const paymentData = {
       orderCode,
-      amount,
-      description: `Thanh toán phí thi thử IELTS cho ${data.fullName}`,
-      returnUrl: 'http://localhost:3000/registration/success', // URL sau khi thanh toán thành công
-      cancelUrl: 'http://localhost:3000/registration/cancel', // URL khi hủy thanh toán
+      amount: Number(registration.price),
+      description: `Thanh toán phí thi ${registration.examType} cho ${registration.fullName}`,
+      returnUrl: 'http://localhost:3000/registration/success',
+      cancelUrl: 'http://localhost:3000/registration/cancel',
     };
 
     const paymentLink = await this.payos.createPaymentLink(paymentData);
 
-    // Lưu thông tin giao dịch vào database
-    await this.prisma.transaction.create({
+    await this.prisma.payment.create({
       data: {
-        orderCode: orderCode.toString(),
-        amount,
+        registrationId,
+        payosOrderId: orderCode.toString(),
+        amount: registration.price,
         status: 'PENDING',
-        fullName: data.fullName,
-        email: data.email,
-        studentId: data.studentId,
-        testDate: data.testDate,
+        paymentMethod: 'PAYOS',
       },
     });
 
-    return paymentLink.checkoutUrl;
+    return { paymentUrl: paymentLink.checkoutUrl };
   }
 
-  async handlePaymentCallback(body: any) {
-    const { orderCode, status } = body;
+  async handleWebhook(webhookData: any) {
+    const { orderCode, status } = webhookData;
 
-    // Xác minh thanh toán với PayOS
     const paymentInfo = await this.payos.getPaymentLinkInformation(orderCode);
     if (paymentInfo.status !== status)
       throw new Error('Invalid payment status');
 
-    // Cập nhật trạng thái giao dịch
-    const transaction = await this.prisma.transaction.update({
-      where: { orderCode: orderCode.toString() },
-      data: { status: status === 'PAID' ? 'COMPLETED' : 'FAILED' },
+    const payment = await this.prisma.payment.update({
+      where: { payosOrderId: orderCode.toString() },
+      data: {
+        status: status === 'PAID' ? 'SUCCESS' : 'FAILED',
+        paymentDate: new Date(),
+      },
     });
 
-    // Gửi email xác nhận nếu thanh toán thành công
+    const registration = await this.prisma.registration.update({
+      where: { id: payment.registrationId },
+      data: { status: status === 'PAID' ? 'PAID' : 'CANCELLED' },
+    });
+
     if (status === 'PAID') {
       await this.mailService.sendMail({
-        to: transaction.email,
-        subject: 'Xác nhận đăng ký thi thử IELTS',
-        text: `Chào ${transaction.fullName},\n\nĐăng ký của bạn cho ngày ${transaction.testDate} đã được xác nhận. Cảm ơn bạn đã thanh toán ${transaction.amount} VND.\n\nTrân trọng,\nĐội ngũ IELTS`,
+        to: registration.email,
+        subject: 'Xác nhận đăng ký thi IELTS',
+        text: `Chào ${registration.fullName},\n\nĐăng ký của bạn cho kỳ thi ${registration.examType} vào ngày ${registration.selectedDate.toLocaleDateString()} đã được xác nhận. Cảm ơn bạn đã thanh toán ${registration.price} VND.\n\nTrân trọng,\nĐội ngũ IELTS`,
       });
     }
 
-    return transaction;
+    return { success: true };
   }
 }

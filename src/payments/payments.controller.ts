@@ -1,29 +1,17 @@
-import { Controller, Post, Body, UseGuards } from '@nestjs/common';
-import { PaymentService } from './payments.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Controller, Post, Body } from '@nestjs/common';
+import { PaymentsService } from './payments.service';
 
-@Controller('payment')
-export class PaymentController {
-  constructor(private readonly paymentService: PaymentService) {}
+@Controller('payments')
+export class PaymentsController {
+  constructor(private readonly paymentsService: PaymentsService) {}
 
   @Post('create')
-  @UseGuards(JwtAuthGuard)
-  async createPayment(
-    @Body()
-    body: {
-      fullName: string;
-      email: string;
-      studentId: string;
-      testDate: string;
-    },
-  ) {
-    const paymentUrl = await this.paymentService.createPaymentLink(body);
-    return { paymentUrl };
+  async createPaymentLink(@Body('registrationId') registrationId: number) {
+    return this.paymentsService.createPaymentLink(registrationId);
   }
 
-  @Post('callback')
-  async handleCallback(@Body() body: any) {
-    const result = await this.paymentService.handlePaymentCallback(body);
-    return result;
+  @Post('webhook')
+  async handleWebhook(@Body() body: any) {
+    return this.paymentsService.handleWebhook(body);
   }
 }

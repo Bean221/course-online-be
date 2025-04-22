@@ -80,6 +80,7 @@ model users {
   ielts_center_mock_registrations    ielts_center_mock_registrations[]
   payments                           Payment[]
   consultations                      consultations[]
+  registrations                      Registration[]
 }
 
 model courses {
@@ -219,22 +220,25 @@ model ielts_center_mock_results {
 }
 
 model Registration {
-  id           Int                      @id @default(autoincrement())
-  fullName     String
-  dob          DateTime
-  gender       Gender
-  phone        String
-  email        String
-  idNumber     String
-  residence    String
-  location     String
-  format       String
-  examType     String
-  price        Decimal
-  selectedDate DateTime
-  status       registration_status_enum
-  createdAt    DateTime                 @default(now())
-  payments     Payment[]
+  id            Int               @id @default(autoincrement())
+  userId        Int
+  fullName      String
+  dob           DateTime
+  gender        Gender
+  phone         String
+  email         String
+  cccd          String
+  residence     String
+  location      String
+  format        String
+  examType      String
+  price         Decimal
+  selectedDate  DateTime
+  status        registration_status_enum @default(pending)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  user          users              @relation(fields: [userId], references: [id])
+  payments      Payment[]
 }
 
 model Payment {
