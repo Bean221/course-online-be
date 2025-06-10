@@ -48,7 +48,6 @@ export class IeltsTestsService {
       data: {
         mock_test_id: data.mock_test_id,
         skill: data.skill as skill_enum,
-        task_number: data.task_number,
         question_text: data.question_text,
         options: data.options || null,
         correct_answer: data.correct_answer || null,

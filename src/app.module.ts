@@ -9,14 +9,14 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { UsersModule } from './users/users.module';
 import { IeltsTestsModule } from './ielts_tests/ielts_tests.module';
-import { PaymentsModule } from './payments/payments.module';
+// import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
     IeltsTestsModule,
     UsersModule,
     IeltsTestsModule,
-    PaymentsModule,
+    // PaymentsModule,
     AuthModule,
     ConfigModule.forRoot(),
     JwtModule.register({}),

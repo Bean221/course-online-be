@@ -76,11 +76,11 @@ model users {
   created_at  DateTime?  @default(now())
   updated_at  DateTime?  @updatedAt
 
-  ielts_exam_registrations           ielts_exam_registrations[]
-  ielts_center_mock_registrations    ielts_center_mock_registrations[]
-  payments                           Payment[]
-  consultations                      consultations[]
-  registrations                      Registration[]
+  ielts_exam_registrations        ielts_exam_registrations[]
+  ielts_center_mock_registrations ielts_center_mock_registrations[]
+  payments                        Payment[]
+  consultations                   consultations[]
+  registrations                   Registration[]
 }
 
 model courses {
@@ -94,12 +94,12 @@ model courses {
 }
 
 model ielts_tests {
-  id          Int       @id @default(autoincrement())
+  id          Int         @id @default(autoincrement())
   name        String?
   description String?
   skill       skill_enum?
-  created_at  DateTime? @default(now())
-  updated_at  DateTime? @updatedAt
+  created_at  DateTime?   @default(now())
+  updated_at  DateTime?   @updatedAt
 
   ielts_exam_registrations ielts_exam_registrations[]
 }
@@ -157,6 +157,7 @@ model ielts_mock_test_questions {
   question_text  String
   options        String?
   correct_answer String?
+  task_number    Int?
   created_at     DateTime   @default(now())
   updated_at     DateTime   @updatedAt
 
@@ -164,19 +165,19 @@ model ielts_mock_test_questions {
 }
 
 model ielts_mock_results {
-  id              Int    @id @default(autoincrement())
-  user_id         Int?
-  mock_test_id    Int
-  reading_score   Float?
-  listening_score Float?
-  writing_score   Float?
-  speaking_score  Float?
-  overall_score   Float?
-  answer_detail   String?
+  id                  Int      @id @default(autoincrement())
+  user_id             Int?
+  mock_test_id        Int
+  reading_score       Float?
+  listening_score     Float?
+  writing_score       Float?
+  speaking_score      Float?
+  overall_score       Float?
+  answer_detail       String?
   listening_audio_url String?
   speaking_audio_url  String?
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
 
   ielts_mock_tests ielts_mock_tests @relation(fields: [mock_test_id], references: [id])
 }
@@ -220,25 +221,25 @@ model ielts_center_mock_results {
 }
 
 model Registration {
-  id            Int               @id @default(autoincrement())
-  userId        Int
-  fullName      String
-  dob           DateTime
-  gender        Gender
-  phone         String
-  email         String
-  cccd          String
-  residence     String
-  location      String
-  format        String
-  examType      String
-  price         Decimal
-  selectedDate  DateTime
-  status        registration_status_enum @default(pending)
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  user          users              @relation(fields: [userId], references: [id])
-  payments      Payment[]
+  id           Int                      @id @default(autoincrement())
+  userId       Int
+  fullName     String
+  dob          DateTime
+  gender       Gender
+  phone        String
+  email        String
+  cccd         String
+  residence    String
+  location     String
+  format       String
+  examType     String
+  price        Decimal
+  selectedDate DateTime
+  status       registration_status_enum @default(pending)
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+  user         users                    @relation(fields: [userId], references: [id])
+  payments     Payment[]
 }
 
 model Payment {

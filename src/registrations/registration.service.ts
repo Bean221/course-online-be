@@ -1,52 +1,25 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { PaymentsService } from '../payments/payments.service';
+import { CreateRegistrationDto } from './dto/create-registration.dto';
 
 @Injectable()
 export class RegistrationService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly paymentsService: PaymentsService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
-  async createRegistration(userId: number, data: any) {
-    const {
-      examType,
-      testDate,
-      location,
-      format,
-      fullName,
-      dob,
-      gender,
-      phone,
-      email,
-      cccd,
-      residence,
-    } = data;
-    const amount = examType === 'Thi Thử' ? 100000 : 5000000;
-
-    const registration = await this.prisma.registration.create({
+  async createRegistration(userId: number, dto: CreateRegistrationDto) {
+    return this.prisma.registration.create({
       data: {
         userId,
-        examType,
-        selectedDate: new Date(testDate),
-        location,
-        format,
-        fullName,
-        dob: new Date(dob),
-        gender,
-        phone,
-        email,
-        cccd,
-        residence,
-        price: amount,
-        status: 'PENDING',
+        ...dto,
+        status: 'pending',
       },
     });
+  }
 
-    const paymentResponse = await this.paymentsService.createPaymentLink(
-      registration.id,
-    );
-    return paymentResponse;
+  async getUserRegistrations(userId: number) {
+    return this.prisma.registration.findMany({
+      where: { userId },
+      include: { payments: true },
+    });
   }
 }
